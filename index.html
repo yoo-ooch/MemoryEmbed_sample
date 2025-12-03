@@ -26,8 +26,8 @@
             <a-text value="CUSTOM1 OK" position="0 1 0" align="center" color="white"></a-text>
         </a-marker>
         
-        <!-- パターン2: pattern-sample-p.patt (元のファイル) -->
-        <a-marker type="pattern" url="./pattern-sample-p.patt" id="custom2">
+        <!-- パターン2: pattern-sample-pa.patt (元のファイル) -->
+        <a-marker type="pattern" url="./pattern-sample-pa.patt" id="custom2">
             <a-box position="0 0.5 0" color="blue" scale="0.5 0.5 0.5"></a-box>
             <a-text value="CUSTOM2 OK" position="0 1 0" align="center" color="white"></a-text>
         </a-marker>
@@ -75,7 +75,7 @@
         async function checkFiles() {
             const files = [
                 { name: 'pattern-marker.patt', url: './pattern-marker.patt' },
-                { name: 'pattern-sample-p.patt', url: './pattern-sample-p.patt' },
+                { name: 'pattern-sample-pa.patt', url: './pattern-sample-pa.patt' },
                 { name: 'sample-3.mp4', url: './assets/videos/sample-3.mp4' }
             ];
             
@@ -167,7 +167,7 @@
             // コンソール出力
             console.log('📁 Expected files:');
             console.log('- ./pattern-marker.patt');
-            console.log('- ./pattern-sample-p.patt');
+            console.log('- ./pattern-sample-pa.patt');
             console.log('- ./assets/videos/sample-3.mp4');
         });
 
