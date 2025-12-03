@@ -2,196 +2,465 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR.js Marker Test - Debug</title>
+    <title>AR Fullscreen Video Player</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        /* 全画面動画用のCSS */
+        .fullscreen-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            object-fit: cover;
+            background: #000;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #00ffff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .video-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10001;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 25px;
+            display: none;
+        }
+        
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .control-btn:hover {
+            background: #00ffff;
+            color: #000;
+        }
+    </style>
 </head>
 <body style='margin: 0; overflow: hidden; font-family: Arial, sans-serif;'>
     
-    <!-- 最もシンプルなAR.jsシーン設定 -->
-    <a-scene embedded arjs='debugUIEnabled: true;'>
+    <!-- AR.jsシーン -->
+    <a-scene 
+        embedded 
+        arjs='
+            trackingMethod: best; 
+            sourceType: webcam; 
+            debugUIEnabled: false;
+            detectionMode: mono_and_matrix; 
+            matrixCodeType: 3x3; 
+            patternRatio: 0.90;
+            maxDetectionRate: 60;
+        '
+        vr-mode-ui="enabled: false"
+        loading-screen="enabled: false">
         
-        <!-- 1. まずHiroマーカーでテスト -->
-        <a-marker preset="hiro" id="hiro-test">
-            <a-box position="0 0.5 0" color="red" scale="0.5 0.5 0.5"></a-box>
-            <a-text value="HIRO OK" position="0 1 0" align="center" color="white"></a-text>
+        <a-assets>
+            <video 
+                id="main-video" 
+                src="./assets/videos/sample-3.mp4" 
+                preload="auto" 
+                crossorigin="anonymous" 
+                webkit-playsinline 
+                playsinline 
+                muted
+                loop>
+            </video>
+        </a-assets>
+        
+        <!-- マーカー設定（複数対応） -->
+        <a-marker preset="hiro" id="hiro-trigger" marker-trigger>
+            <a-text value="🎬 Hiro Detected!" position="0 1 0" align="center" color="#00ffff" scale="2 2 2"></a-text>
         </a-marker>
         
-        <!-- 2. カスタムマーカーのテスト（複数のパターンを試す） -->
-        
-        <!-- パターン1: pattern-marker.patt -->
-        <a-marker type="pattern" url="./pattern-marker.patt" id="custom1">
-            <a-box position="0 0.5 0" color="green" scale="0.5 0.5 0.5"></a-box>
-            <a-text value="CUSTOM1 OK" position="0 1 0" align="center" color="white"></a-text>
+        <a-marker type="pattern" url="./pattern-marker.patt" id="custom-trigger" marker-trigger>
+            <a-text value="🎬 Custom Detected!" position="0 1 0" align="center" color="#00ff00" scale="2 2 2"></a-text>
         </a-marker>
         
-        <!-- パターン2: pattern-sample-pa.patt (元のファイル) -->
-        <a-marker type="pattern" url="./pattern-sample-pa.patt" id="custom2">
-            <a-box position="0 0.5 0" color="blue" scale="0.5 0.5 0.5"></a-box>
-            <a-text value="CUSTOM2 OK" position="0 1 0" align="center" color="white"></a-text>
-        </a-marker>
-        
-        <!-- カメラ -->
         <a-entity camera></a-entity>
     </a-scene>
 
-    <!-- デバッグ情報表示パネル -->
-    <div id="debug-info" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.9); color: white; padding: 15px; border-radius: 8px; max-width: 350px; z-index: 1000; font-size: 12px;">
-        <h3 style="margin: 0 0 10px 0; color: #00ff00;">🔧 AR.js Marker Debug</h3>
-        
-        <div id="file-check" style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
-            <strong>📁 File Status:</strong>
-            <div id="file-status">チェック中...</div>
+    <!-- 読み込み中オーバーレイ -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <h2 style="margin: 0 0 10px 0; color: #00ffff;">🎬 動画を読み込み中...</h2>
+        <p style="margin: 0; opacity: 0.8; font-size: 16px;">しばらくお待ちください</p>
+        <div id="loading-progress" style="margin-top: 20px; font-size: 14px; color: #ffeb3b;">
+            動画データを準備中...
         </div>
-        
-        <div id="marker-check" style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
-            <strong>🎯 Marker Detection:</strong>
-            <div>Hiro: <span id="hiro-status" style="color: #ff9800;">未検出</span></div>
-            <div>Custom1: <span id="custom1-status" style="color: #ff9800;">未検出</span></div>
-            <div>Custom2: <span id="custom2-status" style="color: #ff9800;">未検出</span></div>
+    </div>
+
+    <!-- 全画面動画要素 -->
+    <video 
+        id="fullscreen-video" 
+        class="fullscreen-video" 
+        style="display: none;"
+        controls="false"
+        webkit-playsinline 
+        playsinline>
+    </video>
+
+    <!-- 動画コントロール -->
+    <div id="video-controls" class="video-controls">
+        <button class="control-btn" id="play-pause-btn">⏸ 一時停止</button>
+        <button class="control-btn" id="volume-btn">🔊 音量</button>
+        <button class="control-btn" id="fullscreen-btn">📺 全画面</button>
+        <button class="control-btn" id="close-btn">✕ 閉じる</button>
+    </div>
+
+    <!-- AR状態表示パネル -->
+    <div id="ar-status" style="position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 10px; max-width: 300px; z-index: 1000; font-size: 13px;">
+        <h3 style="margin: 0 0 10px 0; color: #00ffff;">🎯 AR Video Trigger</h3>
+        <div>
+            <strong>Status:</strong> <span id="ar-status-text" style="color: #ffeb3b;">マーカーをスキャンしてください</span>
         </div>
-        
-        <div style="margin: 10px 0;">
-            <button id="check-files" style="padding: 8px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">📁 ファイルチェック</button>
+        <div style="margin-top: 8px; font-size: 11px; color: #aaa;">
+            <div>🎯 Hiro: <span id="hiro-count">0</span> 回検出</div>
+            <div>🎯 Custom: <span id="custom-count">0</span> 回検出</div>
         </div>
-        
-        <div id="instructions" style="margin: 10px 0; padding: 8px; background: rgba(33, 150, 243, 0.15); border-radius: 4px; font-size: 11px; color: #e3f2fd;">
-            <strong>🎯 テスト手順:</strong><br>
-            1. Hiroマーカーで赤いボックス<br>
-            2. pattern-marker.pngで緑のボックス<br>
-            3. sample-p.jpgで青いボックス
+        <div style="margin-top: 10px; padding: 8px; background: rgba(33, 150, 243, 0.2); border-radius: 5px; font-size: 11px;">
+            💡 <strong>使い方:</strong><br>
+            マーカーをカメラに映すと全画面動画が再生されます
         </div>
     </div>
 
     <script>
-        let detectionCounts = {
-            hiro: 0,
-            custom1: 0,
-            custom2: 0
-        };
+        let fullscreenVideo = null;
+        let originalVideo = null;
+        let isVideoPlaying = false;
+        let detectionCounts = { hiro: 0, custom: 0 };
+        let videoTriggered = false;
 
-        // ファイル存在確認
-        async function checkFiles() {
-            const files = [
-                { name: 'pattern-marker.patt', url: './pattern-marker.patt' },
-                { name: 'pattern-sample-pa.patt', url: './pattern-sample-pa.patt' },
-                { name: 'sample-3.mp4', url: './assets/videos/sample-3.mp4' }
-            ];
-            
-            let fileStatus = '';
-            
-            for (const file of files) {
-                try {
-                    const response = await fetch(file.url, { method: 'HEAD' });
-                    if (response.ok) {
-                        fileStatus += `✅ ${file.name}: 存在<br>`;
+        // マーカートリガーコンポーネント
+        AFRAME.registerComponent('marker-trigger', {
+            init: function () {
+                const el = this.el;
+                const markerId = el.id;
+                
+                el.addEventListener('markerFound', function() {
+                    console.log(`🎯 Marker detected: ${markerId}`);
+                    
+                    // 検出回数更新
+                    if (markerId.includes('hiro')) {
+                        detectionCounts.hiro++;
+                        document.getElementById('hiro-count').textContent = detectionCounts.hiro;
                     } else {
-                        fileStatus += `❌ ${file.name}: 404エラー<br>`;
+                        detectionCounts.custom++;
+                        document.getElementById('custom-count').textContent = detectionCounts.custom;
                     }
-                } catch (error) {
-                    fileStatus += `❌ ${file.name}: アクセスエラー<br>`;
-                }
+                    
+                    // まだ動画が起動していない場合のみ実行
+                    if (!videoTriggered) {
+                        videoTriggered = true;
+                        updateARStatus('🎯 マーカー検出！動画を準備中...', '#4caf50');
+                        triggerVideoPlayback();
+                    }
+                });
+                
+                // マーカー消失は動画停止しない
+                el.addEventListener('markerLost', function() {
+                    console.log(`❌ Marker lost: ${markerId} (動画は継続)`);
+                });
             }
-            
-            document.getElementById('file-status').innerHTML = fileStatus;
+        });
+
+        // AR状態表示更新
+        function updateARStatus(message, color = '#ffeb3b') {
+            const statusElement = document.getElementById('ar-status-text');
+            if (statusElement) {
+                statusElement.textContent = message;
+                statusElement.style.color = color;
+            }
+            console.log(`Status: ${message}`);
         }
 
-        // マーカー検出イベントの設定
-        function setupMarkerEvents() {
-            // Hiroマーカー
-            const hiroMarker = document.querySelector('#hiro-test');
-            if (hiroMarker) {
-                hiroMarker.addEventListener('markerFound', function() {
-                    detectionCounts.hiro++;
-                    document.getElementById('hiro-status').textContent = `検出済み (${detectionCounts.hiro})`;
-                    document.getElementById('hiro-status').style.color = '#4caf50';
-                    console.log('✅ Hiro marker detected:', detectionCounts.hiro);
-                });
-                
-                hiroMarker.addEventListener('markerLost', function() {
-                    document.getElementById('hiro-status').textContent = `消失 (${detectionCounts.hiro})`;
-                    document.getElementById('hiro-status').style.color = '#f44336';
-                    console.log('❌ Hiro marker lost');
-                });
-            }
+        // 動画再生のトリガー
+        function triggerVideoPlayback() {
+            console.log('🎬 Starting video playback sequence...');
+            
+            // 読み込みオーバーレイ表示
+            showLoadingOverlay();
+            
+            // 動画の準備
+            setTimeout(() => {
+                prepareVideo();
+            }, 1000);
+        }
 
-            // カスタムマーカー1
-            const custom1Marker = document.querySelector('#custom1');
-            if (custom1Marker) {
-                custom1Marker.addEventListener('markerFound', function() {
-                    detectionCounts.custom1++;
-                    document.getElementById('custom1-status').textContent = `検出済み (${detectionCounts.custom1})`;
-                    document.getElementById('custom1-status').style.color = '#4caf50';
-                    console.log('✅ Custom1 marker detected:', detectionCounts.custom1);
-                });
-                
-                custom1Marker.addEventListener('markerLost', function() {
-                    document.getElementById('custom1-status').textContent = `消失 (${detectionCounts.custom1})`;
-                    document.getElementById('custom1-status').style.color = '#f44336';
-                    console.log('❌ Custom1 marker lost');
-                });
-            }
+        // 読み込みオーバーレイ表示
+        function showLoadingOverlay() {
+            const overlay = document.getElementById('loading-overlay');
+            overlay.style.display = 'flex';
+            
+            // 読み込み進捗表示
+            const progressTexts = [
+                '動画データを準備中...',
+                'メディア要素を初期化中...',
+                '全画面モードを準備中...',
+                '再生開始まであと少し...'
+            ];
+            
+            let currentStep = 0;
+            const progressInterval = setInterval(() => {
+                currentStep++;
+                if (currentStep < progressTexts.length) {
+                    document.getElementById('loading-progress').textContent = progressTexts[currentStep];
+                } else {
+                    clearInterval(progressInterval);
+                }
+            }, 800);
+        }
 
-            // カスタムマーカー2
-            const custom2Marker = document.querySelector('#custom2');
-            if (custom2Marker) {
-                custom2Marker.addEventListener('markerFound', function() {
-                    detectionCounts.custom2++;
-                    document.getElementById('custom2-status').textContent = `検出済み (${detectionCounts.custom2})`;
-                    document.getElementById('custom2-status').style.color = '#4caf50';
-                    console.log('✅ Custom2 marker detected:', detectionCounts.custom2);
+        // 動画準備
+        function prepareVideo() {
+            console.log('📹 Preparing video for fullscreen playback...');
+            
+            if (!fullscreenVideo || !originalVideo) {
+                console.error('❌ Video elements not found');
+                hideLoadingOverlay();
+                return;
+            }
+            
+            // 元動画の設定を全画面動画にコピー
+            fullscreenVideo.src = originalVideo.src;
+            fullscreenVideo.currentTime = 0;
+            fullscreenVideo.volume = 0.8;
+            fullscreenVideo.muted = false;
+            
+            // 動画データ読み込み完了を待つ
+            fullscreenVideo.addEventListener('loadeddata', function() {
+                console.log('✅ Video data loaded, starting playback...');
+                startFullscreenVideo();
+            }, { once: true });
+            
+            // エラーハンドリング
+            fullscreenVideo.addEventListener('error', function(e) {
+                console.error('❌ Video loading error:', e);
+                hideLoadingOverlay();
+                updateARStatus('❌ 動画読み込みエラー', '#f44336');
+            }, { once: true });
+            
+            // 動画読み込み開始
+            fullscreenVideo.load();
+        }
+
+        // 全画面動画再生開始
+        function startFullscreenVideo() {
+            setTimeout(() => {
+                hideLoadingOverlay();
+                
+                // ARシーンを隠す
+                document.querySelector('a-scene').style.display = 'none';
+                document.getElementById('ar-status').style.display = 'none';
+                
+                // 全画面動画表示
+                fullscreenVideo.style.display = 'block';
+                
+                // 動画再生
+                fullscreenVideo.play().then(() => {
+                    console.log('✅ Fullscreen video playback started');
+                    isVideoPlaying = true;
+                    showVideoControls();
+                }).catch(error => {
+                    console.error('❌ Video playback failed:', error);
+                    // 手動再生プロンプト
+                    showManualPlayButton();
                 });
                 
-                custom2Marker.addEventListener('markerLost', function() {
-                    document.getElementById('custom2-status').textContent = `消失 (${detectionCounts.custom2})`;
-                    document.getElementById('custom2-status').style.color = '#f44336';
-                    console.log('❌ Custom2 marker lost');
+            }, 2000); // 読み込み表示を2秒間保持
+        }
+
+        // 読み込みオーバーレイ非表示
+        function hideLoadingOverlay() {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+
+        // 動画コントロール表示
+        function showVideoControls() {
+            document.getElementById('video-controls').style.display = 'block';
+            
+            // 5秒後に自動で隠す
+            setTimeout(() => {
+                const controls = document.getElementById('video-controls');
+                if (controls.style.display === 'block') {
+                    controls.style.display = 'none';
+                }
+            }, 5000);
+        }
+
+        // 手動再生ボタン（自動再生失敗時）
+        function showManualPlayButton() {
+            const playButton = document.createElement('div');
+            playButton.innerHTML = `
+                <div style="text-align: center;">
+                    <h2 style="margin: 0 0 20px 0; color: #00ffff;">🎬 動画を再生</h2>
+                    <p style="margin: 0 0 20px 0; font-size: 16px;">タップして動画を開始してください</p>
+                    <button id="manual-play" style="padding: 20px 40px; background: #00ffff; color: #000; border: none; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer;">▶ 再生開始</button>
+                </div>
+            `;
+            playButton.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 11000;
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                padding: 40px;
+                border-radius: 20px;
+                text-align: center;
+                font-family: Arial, sans-serif;
+            `;
+            
+            document.body.appendChild(playButton);
+            
+            document.getElementById('manual-play').addEventListener('click', () => {
+                fullscreenVideo.play().then(() => {
+                    isVideoPlaying = true;
+                    showVideoControls();
+                    document.body.removeChild(playButton);
                 });
-            }
+            });
+        }
+
+        // 動画コントロール機能
+        function setupVideoControls() {
+            // 再生/一時停止
+            document.getElementById('play-pause-btn').addEventListener('click', () => {
+                if (fullscreenVideo.paused) {
+                    fullscreenVideo.play();
+                    document.getElementById('play-pause-btn').textContent = '⏸ 一時停止';
+                } else {
+                    fullscreenVideo.pause();
+                    document.getElementById('play-pause-btn').textContent = '▶ 再生';
+                }
+            });
+            
+            // 音量切り替え
+            document.getElementById('volume-btn').addEventListener('click', () => {
+                fullscreenVideo.muted = !fullscreenVideo.muted;
+                document.getElementById('volume-btn').textContent = fullscreenVideo.muted ? '🔇 ミュート' : '🔊 音量';
+            });
+            
+            // ブラウザ全画面
+            document.getElementById('fullscreen-btn').addEventListener('click', () => {
+                if (fullscreenVideo.requestFullscreen) {
+                    fullscreenVideo.requestFullscreen();
+                } else if (fullscreenVideo.webkitRequestFullscreen) {
+                    fullscreenVideo.webkitRequestFullscreen();
+                }
+            });
+            
+            // 閉じる
+            document.getElementById('close-btn').addEventListener('click', closeVideo);
+            
+            // 動画クリックでコントロール表示/非表示
+            fullscreenVideo.addEventListener('click', () => {
+                const controls = document.getElementById('video-controls');
+                if (controls.style.display === 'none' || !controls.style.display) {
+                    showVideoControls();
+                } else {
+                    controls.style.display = 'none';
+                }
+            });
+        }
+
+        // 動画を閉じる
+        function closeVideo() {
+            fullscreenVideo.pause();
+            fullscreenVideo.style.display = 'none';
+            document.getElementById('video-controls').style.display = 'none';
+            
+            // ARシーン復帰
+            document.querySelector('a-scene').style.display = 'block';
+            document.getElementById('ar-status').style.display = 'block';
+            
+            isVideoPlaying = false;
+            videoTriggered = false;
+            
+            updateARStatus('📱 マーカーをスキャンしてください', '#ffeb3b');
+            console.log('🔄 Video closed, AR scene restored');
         }
 
         // 初期化
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 AR.js Marker Debug Test starting...');
+            console.log('🚀 AR Fullscreen Video Player starting...');
             
-            // ファイルチェックボタン
-            document.getElementById('check-files').addEventListener('click', checkFiles);
+            // 動画要素の取得
+            fullscreenVideo = document.getElementById('fullscreen-video');
+            originalVideo = document.getElementById('main-video');
             
-            // 初回ファイルチェック
-            setTimeout(checkFiles, 1000);
-            
-            // マーカーイベント設定（少し遅延）
-            setTimeout(setupMarkerEvents, 3000);
-            
-            // コンソール出力
-            console.log('📁 Expected files:');
-            console.log('- ./pattern-marker.patt');
-            console.log('- ./pattern-sample-pa.patt');
-            console.log('- ./assets/videos/sample-3.mp4');
-        });
-
-        // エラー監視
-        window.addEventListener('error', function(e) {
-            console.error('🚨 JavaScript Error:', e.error);
-        });
-
-        // AR.jsエラー監視
-        document.addEventListener('camera-error', function(e) {
-            console.error('🚨 Camera Error:', e.detail);
-        });
-
-        // 5秒ごとの状態確認
-        setInterval(function() {
-            const scene = document.querySelector('a-scene');
-            if (scene && scene.systems && scene.systems.arjs) {
-                console.log('📊 AR.js System Status:', {
-                    initialized: true,
-                    markers: Object.keys(detectionCounts),
-                    detections: detectionCounts
-                });
+            if (!fullscreenVideo || !originalVideo) {
+                console.error('❌ Video elements not found');
+                return;
             }
-        }, 5000);
+            
+            // 動画コントロール設定
+            setupVideoControls();
+            
+            // 元動画の読み込み確認
+            originalVideo.addEventListener('loadeddata', () => {
+                console.log('✅ Original video loaded');
+                updateARStatus('📱 マーカーをスキャンしてください', '#ffeb3b');
+            });
+            
+            originalVideo.addEventListener('error', (e) => {
+                console.error('❌ Original video error:', e);
+                updateARStatus('❌ 動画ファイルエラー', '#f44336');
+            });
+            
+            // ESCキーで動画を閉じる
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && isVideoPlaying) {
+                    closeVideo();
+                }
+            });
+            
+            console.log('✅ AR Fullscreen Video Player initialized');
+        });
     </script>
 </body>
 </html>
