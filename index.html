@@ -2,262 +2,54 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>AR Video Player - Debug Version</title>
+    <title>Hiro Marker Test</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <!-- A-Frame を読み込む -->
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
-    <!-- AR.js を読み込む -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 </head>
 <body style='margin: 0; overflow: hidden; font-family: Arial, sans-serif;'>
     
-    <!-- シーンを追加 -->
-    <a-scene embedded arjs='debugUIEnabled: true; detectionMode: mono_and_matrix; matrixCodeType: 3x3;'>
-        <a-assets>
-            <!-- 動画ファイルを読み込む -->
-            <video id="video1" src="./assets/videos/sample-3.mp4" preload="auto" crossorigin="anonymous" webkit-playsinline playsinline muted loop></video>
-        </a-assets>
-        
-        <!-- カスタムマーカーを使用 -->
-        <a-marker type="pattern" url="./pattern-sample-p.patt" id="custom-marker">
-            <!-- テスト用の簡単な3Dオブジェクト -->
+    <a-scene embedded arjs='debugUIEnabled: true;'>
+        <!-- Hiroマーカー（標準マーカー）を使用 -->
+        <a-marker preset="hiro" id="hiro-marker">
             <a-box position="0 0.5 0" color="red" scale="0.5 0.5 0.5" 
                    animation="property: rotation; to: 0 360 0; loop: true; dur: 2000">
             </a-box>
-            
-            <!-- 動画を表示する平面 -->
-            <a-plane 
-                position="0 0 0" 
-                rotation="-90 0 0" 
-                width="2" 
-                height="1.5" 
-                material="src: #video1; transparent: true; alphaTest: 0.1;">
-            </a-plane>
-            
-            <!-- タイトルテキスト -->
-            <a-text 
-                value="🎬 MARKER DETECTED!" 
-                position="0 1.2 0" 
-                align="center" 
-                color="#00ff00"
-                scale="1.5 1.5 1.5">
-            </a-text>
+            <a-text value="HIRO DETECTED!" position="0 1 0" align="center" color="#00ff00"></a-text>
         </a-marker>
         
-        <!-- カメラを追加 -->
         <a-entity camera></a-entity>
     </a-scene>
 
-    <!-- デバッグパネル -->
-    <div id="debug-panel" style="position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); color: white; padding: 20px; border-radius: 12px; max-width: 350px; z-index: 1000; font-size: 12px;">
-        <h3 style="margin: 0 0 15px 0; color: #00ff00;">🔧 AR Debug Console</h3>
-        
-        <!-- AR.js 状態 -->
-        <div style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-            <strong>📡 AR.js Status:</strong>
-            <div id="arjs-status" style="color: #ffeb3b;">初期化中...</div>
-        </div>
-        
-        <!-- マーカー状態 -->
-        <div style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-            <strong>🎯 Marker Status:</strong>
-            <div id="marker-status" style="color: #ff9800;">検索中...</div>
-            <div>検出回数: <span id="detection-count" style="color: #4caf50;">0</span></div>
-            <div>消失回数: <span id="lost-count" style="color: #f44336;">0</span></div>
-        </div>
-        
-        <!-- 動画状態 -->
-        <div style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-            <strong>🎬 Video Status:</strong>
-            <div id="video-status" style="color: #2196f3;">読み込み中...</div>
-            <div id="video-info"></div>
-        </div>
-        
-        <!-- ファイル状態 -->
-        <div style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-            <strong>📁 File Status:</strong>
-            <div id="file-status">
-                <div>✅ pattern-sample-p.patt: <span id="patt-status">確認中...</span></div>
-                <div>🎬 sample-3.mp4: <span id="video-file-status">確認中...</span></div>
-            </div>
-        </div>
-        
-        <!-- カメラ状態 -->
-        <div style="margin: 10px 0; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-            <strong>📷 Camera Status:</strong>
-            <div id="camera-status" style="color: #9c27b0;">確認中...</div>
-        </div>
-        
-        <!-- 手動テストボタン -->
-        <div style="margin: 15px 0;">
-            <button id="test-video" style="padding: 8px 12px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px; margin: 2px;">動画テスト</button>
-            <button id="force-show" style="padding: 8px 12px; background: #ff9800; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 11px; margin: 2px;">3D表示テスト</button>
-        </div>
+    <div style="position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 10px; z-index: 1000;">
+        <h3>🔧 Hiro Marker Test</h3>
+        <p>Hiroマーカーをカメラに映してください</p>
+        <div id="hiro-status">マーカーを探しています...</div>
+        <button id="download-hiro" style="margin-top: 10px; padding: 8px 12px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Hiroマーカーをダウンロード</button>
     </div>
 
     <script>
-        let detectionCount = 0;
-        let lostCount = 0;
-        let currentVideo = null;
-        let isMarkerVisible = false;
-
-        // デバッグログ関数
-        function updateStatus(elementId, message, color = 'white') {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.textContent = message;
-                element.style.color = color;
-            }
-            console.log(`[${elementId}] ${message}`);
-        }
-
-        // ファイル存在確認
-        async function checkFiles() {
-            // .pattファイルの確認
-            try {
-                const response = await fetch('./pattern-sample-p.patt');
-                if (response.ok) {
-                    updateStatus('patt-status', '✅ 見つかりました', '#4caf50');
-                } else {
-                    updateStatus('patt-status', '❌ 404エラー', '#f44336');
-                }
-            } catch (error) {
-                updateStatus('patt-status', '❌ 読み込みエラー', '#f44336');
-            }
-
-            // 動画ファイルの確認
-            const video = document.querySelector('#video1');
-            if (video) {
-                video.addEventListener('loadeddata', function() {
-                    updateStatus('video-file-status', '✅ 読み込み完了', '#4caf50');
-                    updateStatus('video-info', `${video.duration.toFixed(1)}秒, ${video.videoWidth}x${video.videoHeight}`, '#4caf50');
-                });
-                
-                video.addEventListener('error', function() {
-                    updateStatus('video-file-status', '❌ 読み込みエラー', '#f44336');
-                });
-            }
-        }
-
-        // AR.js初期化確認
-        function checkARJS() {
-            updateStatus('arjs-status', '初期化完了 ✅', '#4caf50');
-            
-            // カメラアクセス確認
-            navigator.mediaDevices.getUserMedia({video: true})
-                .then(function(stream) {
-                    updateStatus('camera-status', '✅ アクセス許可', '#4caf50');
-                    stream.getTracks().forEach(track => track.stop());
-                })
-                .catch(function(error) {
-                    updateStatus('camera-status', '❌ アクセス拒否', '#f44336');
-                });
-        }
-
-        // マーカー検出コンポーネント
-        AFRAME.registerComponent('debug-marker', {
-            init: function () {
-                const el = this.el;
-                console.log('Debug marker component initialized');
-                
-                // マーカーが見つかった時
-                el.addEventListener('markerFound', function() {
-                    detectionCount++;
-                    isMarkerVisible = true;
-                    updateStatus('marker-status', '🎯 マーカー検出中!', '#4caf50');
-                    document.getElementById('detection-count').textContent = detectionCount;
-                    
-                    console.log('🎯 MARKER FOUND! Count:', detectionCount);
-                    
-                    // 動画再生
-                    if (currentVideo) {
-                        currentVideo.play().then(() => {
-                            updateStatus('video-status', '▶️ 再生中', '#4caf50');
-                        }).catch(error => {
-                            updateStatus('video-status', '❌ 再生失敗: ' + error.message, '#f44336');
-                        });
-                    }
-                });
-
-                // マーカーが見失われた時
-                el.addEventListener('markerLost', function() {
-                    lostCount++;
-                    isMarkerVisible = false;
-                    updateStatus('marker-status', '❌ マーカー消失', '#f44336');
-                    document.getElementById('lost-count').textContent = lostCount;
-                    
-                    console.log('❌ MARKER LOST! Count:', lostCount);
-                    
-                    // 動画一時停止
-                    if (currentVideo) {
-                        currentVideo.pause();
-                        updateStatus('video-status', '⏸️ 一時停止', '#ff9800');
-                    }
-                });
-            }
-        });
-
-        // ページ読み込み後の初期化
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 AR Video Player Debug Version 起動');
+            const marker = document.querySelector('#hiro-marker');
+            const status = document.getElementById('hiro-status');
             
-            // ファイル確認
-            checkFiles();
-            
-            // AR.js確認（少し遅延）
-            setTimeout(checkARJS, 1000);
-            
-            // マーカーにデバッグコンポーネントを追加
-            setTimeout(function() {
-                const marker = document.querySelector('#custom-marker');
-                if (marker) {
-                    marker.setAttribute('debug-marker', '');
-                    console.log('✅ Debug component added to marker');
-                } else {
-                    console.error('❌ Marker element not found');
-                }
-            }, 2000);
-
-            // 動画要素の取得
-            currentVideo = document.querySelector('#video1');
-            if (currentVideo) {
-                currentVideo.addEventListener('loadstart', () => {
-                    updateStatus('video-status', '📥 読み込み開始', '#2196f3');
-                });
-                
-                currentVideo.addEventListener('canplay', () => {
-                    updateStatus('video-status', '✅ 再生準備完了', '#4caf50');
-                });
-            }
-
-            // テストボタンの設定
-            document.getElementById('test-video').addEventListener('click', function() {
-                if (currentVideo) {
-                    currentVideo.play().then(() => {
-                        updateStatus('video-status', '▶️ 手動再生中', '#4caf50');
-                    }).catch(error => {
-                        updateStatus('video-status', '❌ 手動再生失敗', '#f44336');
-                    });
-                }
+            marker.addEventListener('markerFound', function() {
+                status.textContent = '🎯 Hiroマーカー検出！';
+                status.style.color = '#4caf50';
+                console.log('Hiro marker detected!');
             });
-
-            document.getElementById('force-show').addEventListener('click', function() {
-                const marker = document.querySelector('#custom-marker');
-                if (marker) {
-                    // マーカーを強制表示
-                    marker.object3D.visible = true;
-                    updateStatus('marker-status', '🔧 強制表示中', '#ffeb3b');
-                }
+            
+            marker.addEventListener('markerLost', function() {
+                status.textContent = 'マーカーを探しています...';
+                status.style.color = '#ff9800';
+                console.log('Hiro marker lost');
+            });
+            
+            // Hiroマーカーダウンロードリンク
+            document.getElementById('download-hiro').addEventListener('click', function() {
+                window.open('https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/HIRO.jpg', '_blank');
             });
         });
-
-        // 5秒ごとの状態確認
-        setInterval(function() {
-            const scene = document.querySelector('a-scene');
-            if (scene && scene.systems && scene.systems.arjs) {
-                console.log('📊 AR.js System Status:', scene.systems.arjs);
-            }
-        }, 5000);
     </script>
 </body>
 </html>
